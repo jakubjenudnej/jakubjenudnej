@@ -1,0 +1,27 @@
+name: Denní shrnutí novinek
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 6:00 Praha
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Nastavit Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalace knihoven
+        run: pip install openai feedparser requests
+
+      - name: Spuštění skriptu
+        run: python script.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
