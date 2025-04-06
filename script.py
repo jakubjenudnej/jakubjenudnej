@@ -80,7 +80,7 @@ def send_notification(message):
     data = {
         "token": pushover_app_token,
         "user": pushover_user_key,
-        "title": "📰 Denní shrnutí novinek",
+        "title": "📰 Daily News for Jacob",
         "message": message[:1024]  # limit 1024 znaků
     }
     response = requests.post("https://api.pushover.net/1/messages.json", data=data)
