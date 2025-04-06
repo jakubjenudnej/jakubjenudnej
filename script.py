@@ -3,18 +3,19 @@ import feedparser
 import requests
 from openai import OpenAI
 
-# 🔐 API klíče z GitHub Secrets
+# 🔐 Load secrets from environment
 openai_api_key = os.getenv("OPENAI_API_KEY")
 pushover_user_key = os.getenv("PUSHOVER_USER_KEY")
 pushover_app_token = os.getenv("PUSHOVER_APP_TOKEN")
 
-# 🧠 Inicializace OpenAI klienta
+# 🧠 OpenAI client
 client = OpenAI(api_key=openai_api_key)
 
-# 🌍 Zpravodajské zdroje (RSS)
+# 🌍 RSS sources
 sources = {
     "BBC Tech": "https://feeds.bbci.co.uk/news/technology/rss.xml",
     "BBC UK": "https://feeds.bbci.co.uk/news/rss.xml",
+    "BBC US": "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml",
     "CNN": "https://rss.cnn.com/rss/money_news_international.rss",
     "Novinky": "https://www.novinky.cz/rss",
     "Forbes": "https://www.forbes.com/technology/feed/",
@@ -22,10 +23,10 @@ sources = {
     "PBS": "https://www.pbs.org/newshour/feeds/rss/headlines"
 }
 
-# 🏷️ Sledovaná témata
-topics = ["ekonomika", "technologie", "AI", "umělá inteligence", "burza", "bitcoin", "elon musk", "trump"]
+# 🏷️ Topics to track
+topics = ["economy", "technology", "ai", "artificial intelligence", "stock market", "bitcoin", "elon musk", "trump"]
 
-# 📥 Získání článků podle témat
+# 📥 Fetch articles based on keywords
 def fetch_articles():
     articles = []
     for source, url in sources.items():
@@ -44,17 +45,17 @@ def fetch_articles():
                 break
     return articles
 
-# 🤖 Shrnutí podle témat s rozdělením
+# 🤖 Summarize articles using OpenAI
 def summarize(articles):
     content = "\n".join(articles)
 
-    # 🧤 Pojistka na délku promptu
+    # ✂️ Prevent too long prompts
     max_token_input = 7000
     if len(content.split()) > max_token_input:
         content = " ".join(content.split()[:max_token_input])
 
     if not content.strip():
-        return "Dnes nebyly nalezeny žádné relevantní články ke sledovaným tématům."
+        return "No relevant news articles found in the last 24 hours."
 
     response = client.chat.completions.create(
         model="gpt-4",
@@ -62,12 +63,11 @@ def summarize(articles):
             {
                 "role": "system",
                 "content": (
-                    "Jsi zpravodajský asistent. Na základě článků níže vytvoř stručné shrnutí "
-                    "rozdělené podle následujících témat: Ekonomika, Technologie, Umělá inteligence, Burza, Bitcoin, Elon Musk, Donald Trump. "
-                    "U každého tématu napiš, co se za posledních 24 hodin stalo. "
-                    "Pokud nejsou žádné relevantní informace, napiš 'Žádné nové zprávy.' "
-                    "Zdroje zahrnují BBC Tech, BBC UK, CNN, Novinky.cz, Forbes, Seznam Zprávy a PBS. "
-                    "Výstup napiš přehledně, pro zobrazení na telefonu."
+                    "You are a news summarization assistant. Based on the articles below, generate a short and clear summary "
+                    "divided into the following topics: Economy, Technology, Artificial Intelligence, Stock Market, Bitcoin, Elon Musk, Donald Trump. "
+                    "Summarize only events from the last 24 hours. If there are no updates for a topic, say 'No major updates.' "
+                    "Sources include BBC Tech, BBC UK, BBC US, CNN, Forbes, Novinky.cz, Seznam Zprávy, and PBS. "
+                    "Output should be mobile-friendly and written in clear English."
                 )
             },
             {"role": "user", "content": content}
@@ -75,26 +75,25 @@ def summarize(articles):
     )
     return response.choices[0].message.content
 
-# 📲 Odeslání přes Pushover
+# 📲 Send summary via Pushover
 def send_notification(message):
     data = {
         "token": pushover_app_token,
         "user": pushover_user_key,
         "title": "📰 Daily News for Jacob",
-        "message": message[:1024]  # limit 1024 znaků
+        "message": message[:1024]  # Limit to 1024 characters for Pushover
     }
     response = requests.post("https://api.pushover.net/1/messages.json", data=data)
     if response.status_code == 200:
-        print("✅ Notifikace odeslána.")
+        print("✅ Notification sent.")
     else:
-        print("❌ Chyba při odesílání:", response.text)
+        print("❌ Error sending notification:", response.text)
 
-# 🚀 Hlavní běh
+# 🚀 Run the full process
 if __name__ == "__main__":
     articles = fetch_articles()
     if articles:
         summary = summarize(articles)
         send_notification(summary)
     else:
-        send_notification("Dnes nebyly nalezeny žádné relevantní novinky.")
-
+        send_notification("No relevant news articles found today.")
